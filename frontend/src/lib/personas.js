@@ -65,7 +65,12 @@ export const MODELS = [
   { provider: "openai", name: "gpt-5.4-mini", label: "GPT 5.4 Mini — fast & light" },
   { provider: "anthropic", name: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 — deep reasoning" },
   { provider: "gemini", name: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro — long context" },
+  { provider: "gemini", name: "gemini-3.7-flash", label: "Gemini 3.7 Flash — latest & fast" },
+  { provider: "gemini", name: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+  { provider: "gemini", name: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
   { provider: "gemini", name: "gemini-3-flash-preview", label: "Gemini 3 Flash — snappy" },
+  { provider: "gemini", name: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  { provider: "gemini", name: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
 ];
 
 // Field-specific smart suggestions, tailored per persona
