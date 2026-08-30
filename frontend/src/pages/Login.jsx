@@ -73,36 +73,16 @@ export default function Login() {
             />
           </>
         )}
-        {/* rotating scope rings + one-time radar sweep */}
-        <motion.div
-          initial={{ rotate: 0 }}
-          animate={reduceMotion ? {} : { rotate: 360 }}
-          transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
-          className="absolute -right-40 top-1/2 -translate-y-1/2 opacity-[0.35]"
-        >
-          <svg width="820" height="820" viewBox="0 0 820 820" fill="none">
-            <defs>
-              <linearGradient id="sweep" x1="410" y1="410" x2="800" y2="410" gradientUnits="userSpaceOnUse">
-                <stop stopColor={ACCENT} stopOpacity="0.35" />
-                <stop offset="1" stopColor={ACCENT} stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            {[380, 300, 220, 140, 70].map((r, i) => (
-              <circle key={r} cx="410" cy="410" r={r} stroke={ACCENT} strokeOpacity={0.25 - i * 0.03} strokeWidth="1.5" />
-            ))}
-            <line x1="410" y1="20" x2="410" y2="800" stroke={ACCENT} strokeOpacity="0.15" strokeWidth="1" />
-            <line x1="20" y1="410" x2="800" y2="410" stroke={ACCENT} strokeOpacity="0.15" strokeWidth="1" />
-          </svg>
-        </motion.div>
-        {!reduceMotion && (
-          <motion.div
-            className="absolute -right-40 top-1/2 -translate-y-1/2 h-[760px] w-[760px] rounded-full"
-            style={{ background: "conic-gradient(from 0deg, rgba(200,255,46,0.22), transparent 25%)" }}
-            initial={{ rotate: 0, opacity: 0.8 }}
-            animate={{ rotate: 360, opacity: 0 }}
-            transition={{ duration: 2.6, ease: "easeOut" }}
-          />
-        )}
+        {/* anamorphic hero artwork */}
+        <div
+          className="absolute right-0 top-0 h-full w-[64%] bg-no-repeat bg-cover bg-center"
+          style={{
+            backgroundImage:
+              "url(https://static.prod-images.emergentagent.com/jobs/dc78c072-16a0-4d45-9298-3c46a367ad53/images/05efac5482fef5c4225f9b27fa02f6506ffda24da2b8d8d5ed6e484cd4641ec5.jpeg)",
+            maskImage: "linear-gradient(to right, transparent, black 40%)",
+            WebkitMaskImage: "linear-gradient(to right, transparent, black 40%)",
+          }}
+        />
         {/* ghosted skill words revealed on load */}
         {SKILL_WORDS.map((s, i) => (
           <motion.span
