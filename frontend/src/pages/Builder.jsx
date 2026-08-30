@@ -51,10 +51,14 @@ export default function Builder() {
   const template = location.state?.template || null;
 
   const seed = editing || template || {};
+  const initialSkills = (seed.skills && seed.skills.length)
+    ? seed.skills
+    : (seed.persona ? [seed.persona] : ["default"]);
   const [form, setForm] = useState({
     name: seed.name || "",
     description: seed.description || "",
-    persona: seed.persona || "default",
+    persona: initialSkills[0] || "default",
+    skills: initialSkills,
     role: seed.role || "",
     goal: seed.goal || "",
     background: seed.background || "",
@@ -87,6 +91,11 @@ export default function Builder() {
   }, [previewId]);
 
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
+  const toggleSkill = (k) => setForm((f) => {
+    let skills = f.skills.includes(k) ? f.skills.filter((x) => x !== k) : [...f.skills, k];
+    if (skills.length === 0) skills = ["default"];
+    return { ...f, skills, persona: skills[0] };
+  });
   const p = personaOf(form.persona);
   const modelValue = `${form.model_provider}::${form.model_name}`;
 
@@ -216,17 +225,29 @@ export default function Builder() {
                 placeholder="e.g. Atlas, my strategy partner" className={inputCls} />
             </FIELD>
 
-            <FIELD label="Specialty / Persona" testid="field-persona">
-              <Select value={form.persona} onValueChange={set("persona")}>
-                <SelectTrigger data-testid="select-persona" className="bg-zinc-900 border-white/15 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-white/10 text-white">
-                  {Object.entries(PERSONAS).map(([k, v]) => (
-                    <SelectItem key={k} value={k} className="focus:bg-white/10">{v.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <FIELD label="Skills — toggle one or many" testid="field-skills">
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(PERSONAS).map(([k, v]) => {
+                  const active = form.skills.includes(k);
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      data-testid={`skill-${k}`}
+                      onClick={() => toggleSkill(k)}
+                      className="px-3 py-1.5 rounded-full text-sm border transition-colors"
+                      style={active
+                        ? { backgroundColor: v.accent, borderColor: v.accent, color: "#09090b" }
+                        : { borderColor: "rgba(255,255,255,0.15)", color: "#a1a1aa" }}
+                    >
+                      {v.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="font-mono text-[10px] text-zinc-500">
+                First active skill sets the visual theme · combine skills for a multi-specialized agent
+              </p>
             </FIELD>
 
             <FIELD label="Short description" testid="field-description">

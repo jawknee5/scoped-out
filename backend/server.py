@@ -49,6 +49,7 @@ class Agent(BaseModel):
     name: str
     description: str = ""
     persona: str = "default"
+    skills: List[str] = Field(default_factory=list)
     role: str = ""
     goal: str = ""
     background: str = ""
@@ -63,6 +64,7 @@ class AgentCreate(BaseModel):
     name: str
     description: str = ""
     persona: str = "default"
+    skills: List[str] = Field(default_factory=list)
     role: str = ""
     goal: str = ""
     background: str = ""
@@ -240,6 +242,10 @@ def build_system_prompt(agent: dict, history: List[dict], passages: Optional[Lis
         "",
         "Always end your response with a short section titled \"Next best step\" containing exactly one recommended action and a one-line rationale.",
     ]
+    skills = agent.get("skills") or []
+    if skills:
+        nice = ", ".join(s.replace("_", " ").title() for s in skills)
+        parts.insert(6, f"SPECIALIZED SKILLS: You are multi-skilled and blend expertise across these domains — {nice}. Draw on whichever fits best for each question, and combine them when useful.")
     if passages:
         parts.append("\nKNOWLEDGE BASE — the most relevant passages retrieved from the user's attached documents for THIS question. Treat them as authoritative context and cite the source document name when you rely on a passage:")
         for i, d in enumerate(passages, 1):

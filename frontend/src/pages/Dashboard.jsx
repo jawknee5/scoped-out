@@ -77,7 +77,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 font-heading text-lg tracking-tight text-white">
             <Wand2 className="h-5 w-5" style={{ color: "var(--theme-accent)" }} />
-            Agent Forge
+            Scoped Out
           </div>
           <div className="flex items-center gap-3">
             {user?.picture && (
