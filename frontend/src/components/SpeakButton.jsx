@@ -31,7 +31,9 @@ export const SpeakButton = ({ text, accent }) => {
   useEffect(() => {
     // warm up voice list
     if (window.speechSynthesis) window.speechSynthesis.getVoices();
-    return () => { try { window.speechSynthesis?.cancel(); } catch {} };
+    return () => {
+      try { window.speechSynthesis?.cancel(); } catch (error) { console.error("Speech cancel failed:", error); }
+    };
   }, []);
 
   const toggle = () => {

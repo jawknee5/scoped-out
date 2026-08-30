@@ -11,7 +11,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await api.get("/auth/me");
       setUser(res.data);
-    } catch {
+    } catch (error) {
+      if (error?.response?.status !== 401) console.error("Auth check failed:", error);
       setUser(null);
     } finally {
       setLoading(false);
@@ -31,7 +32,9 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await api.post("/auth/logout");
-    } catch {}
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    }
     setUser(null);
   };
 

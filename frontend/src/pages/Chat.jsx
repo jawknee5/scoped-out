@@ -31,7 +31,8 @@ export default function Chat() {
         setAgent(a.data);
         setPersona(a.data.persona);
         setMessages(m.data);
-      } catch {
+      } catch (error) {
+        console.error("Failed to load agent/messages:", error);
         toast.error("Agent not found");
         navigate("/dashboard");
       }
@@ -45,18 +46,21 @@ export default function Chat() {
   const send = async () => {
     if (!input.trim() || sending) return;
     const text = input.trim();
+    const userId = `c-${Date.now()}-u`;
+    const aiId = `c-${Date.now()}-a`;
     setInput("");
-    setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
+    setMessages((m) => [...m, { id: userId, role: "user", content: text }, { id: aiId, role: "assistant", content: "" }]);
     setSending(true);
     try {
       await streamChat(agentId, text, (delta) => {
         setMessages((m) => {
           const copy = [...m];
-          copy[copy.length - 1] = { role: "assistant", content: copy[copy.length - 1].content + delta };
+          copy[copy.length - 1] = { ...copy[copy.length - 1], content: copy[copy.length - 1].content + delta };
           return copy;
         });
       });
-    } catch {
+    } catch (error) {
+      console.error("Chat stream failed:", error);
       toast.error("The agent couldn't respond. Try again.");
       setMessages((m) => m.slice(0, -2));
       setInput(text);
@@ -112,13 +116,13 @@ export default function Chat() {
           )}
           {messages.map((m, i) =>
             m.role === "user" ? (
-              <div key={i} className="flex justify-end">
+              <div key={m.id || `msg-${i}`} className="flex justify-end">
                 <div className="bg-white/5 rounded-2xl px-6 py-4 max-w-[85%] text-zinc-100 font-light whitespace-pre-wrap">
                   {m.content}
                 </div>
               </div>
             ) : (
-              <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              <motion.div key={m.id || `msg-${i}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 className="pl-5 border-l-2" style={{ borderColor: p.accent }}>
                 <Markdown>{m.content}</Markdown>
                 {m.content && <SpeakButton text={m.content} accent={p.accent} />}

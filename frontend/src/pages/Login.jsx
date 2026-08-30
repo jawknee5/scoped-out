@@ -1,14 +1,40 @@
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Target, Layers, Zap, FileText } from "lucide-react";
 
 const ACCENT = "#c8ff2e";
 
+const SKILL_WORDS = [
+  { t: "law", x: "12%", y: "22%" },
+  { t: "research", x: "78%", y: "18%" },
+  { t: "finance", x: "8%", y: "68%" },
+  { t: "code", x: "88%", y: "62%" },
+  { t: "strategy", x: "70%", y: "82%" },
+  { t: "creative", x: "22%", y: "88%" },
+  { t: "medical", x: "50%", y: "12%" },
+];
+
 export default function Login() {
+  const spotlightRef = useRef(null);
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
   const handleLogin = () => {
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     const redirectUrl = window.location.origin + "/dashboard";
     window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
   };
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    const onMove = (e) => {
+      if (!spotlightRef.current) return;
+      spotlightRef.current.style.background = `radial-gradient(650px circle at ${e.clientX}px ${e.clientY}px, rgba(200,255,46,0.10), rgba(200,255,46,0.03) 30%, transparent 55%)`;
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [reduceMotion]);
 
   const features = [
     { icon: Layers, title: "Multi-skilled agents", text: "Toggle skills to blend legal, research, finance and more into one assistant." },
@@ -18,35 +44,84 @@ export default function Login() {
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden" style={{ backgroundColor: "#0b0d07", color: "#f4f4ec" }}>
-      {/* distinct backdrop: warm off-black + lime scope motif + grid */}
+      {/* backdrop layers */}
       <div className="absolute inset-0 -z-10">
+        {/* grid */}
         <div
           className="absolute inset-0"
           style={{
             backgroundImage:
               "linear-gradient(rgba(200,255,46,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,46,0.06) 1px, transparent 1px)",
             backgroundSize: "64px 64px",
-            maskImage: "radial-gradient(circle at 70% 40%, black 0%, transparent 70%)",
+            maskImage: "radial-gradient(circle at 70% 40%, black 0%, transparent 72%)",
           }}
         />
+        {/* ambient aurora blobs */}
+        {!reduceMotion && (
+          <>
+            <motion.div
+              className="absolute h-[520px] w-[520px] rounded-full blur-[130px]"
+              style={{ background: "rgba(200,255,46,0.10)", left: "-8%", top: "20%" }}
+              animate={{ x: [0, 60, -20, 0], y: [0, -40, 30, 0], opacity: [0.6, 0.9, 0.7, 0.6] }}
+              transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <motion.div
+              className="absolute h-[440px] w-[440px] rounded-full blur-[130px]"
+              style={{ background: "rgba(80,180,255,0.08)", right: "0%", bottom: "-6%" }}
+              animate={{ x: [0, -50, 20, 0], y: [0, 30, -20, 0], opacity: [0.5, 0.8, 0.6, 0.5] }}
+              transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </>
+        )}
+        {/* rotating scope rings + one-time radar sweep */}
         <motion.div
           initial={{ rotate: 0 }}
-          animate={{ rotate: 360 }}
+          animate={reduceMotion ? {} : { rotate: 360 }}
           transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
           className="absolute -right-40 top-1/2 -translate-y-1/2 opacity-[0.35]"
         >
           <svg width="820" height="820" viewBox="0 0 820 820" fill="none">
+            <defs>
+              <linearGradient id="sweep" x1="410" y1="410" x2="800" y2="410" gradientUnits="userSpaceOnUse">
+                <stop stopColor={ACCENT} stopOpacity="0.35" />
+                <stop offset="1" stopColor={ACCENT} stopOpacity="0" />
+              </linearGradient>
+            </defs>
             {[380, 300, 220, 140, 70].map((r, i) => (
-              <circle key={i} cx="410" cy="410" r={r} stroke={ACCENT} strokeOpacity={0.25 - i * 0.03} strokeWidth="1.5" />
+              <circle key={r} cx="410" cy="410" r={r} stroke={ACCENT} strokeOpacity={0.25 - i * 0.03} strokeWidth="1.5" />
             ))}
             <line x1="410" y1="20" x2="410" y2="800" stroke={ACCENT} strokeOpacity="0.15" strokeWidth="1" />
             <line x1="20" y1="410" x2="800" y2="410" stroke={ACCENT} strokeOpacity="0.15" strokeWidth="1" />
           </svg>
         </motion.div>
-        <div className="absolute -left-32 -bottom-32 h-[420px] w-[420px] rounded-full blur-[120px]" style={{ background: "rgba(200,255,46,0.10)" }} />
+        {!reduceMotion && (
+          <motion.div
+            className="absolute -right-40 top-1/2 -translate-y-1/2 h-[760px] w-[760px] rounded-full"
+            style={{ background: "conic-gradient(from 0deg, rgba(200,255,46,0.22), transparent 25%)" }}
+            initial={{ rotate: 0, opacity: 0.8 }}
+            animate={{ rotate: 360, opacity: 0 }}
+            transition={{ duration: 2.6, ease: "easeOut" }}
+          />
+        )}
+        {/* ghosted skill words revealed on load */}
+        {SKILL_WORDS.map((s, i) => (
+          <motion.span
+            key={s.t}
+            className="absolute font-mono uppercase tracking-[0.3em] text-[11px] select-none"
+            style={{ left: s.x, top: s.y, color: "rgba(200,255,46,0.22)" }}
+            initial={{ opacity: 0, filter: "blur(6px)" }}
+            animate={{ opacity: 1, filter: "blur(0px)" }}
+            transition={{ delay: 0.6 + i * 0.12, duration: 0.8 }}
+          >
+            {s.t}
+          </motion.span>
+        ))}
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 lg:px-10 min-h-screen flex flex-col">
+      {/* cursor spotlight overlay */}
+      <div ref={spotlightRef} className="pointer-events-none fixed inset-0 -z-10" style={{ mixBlendMode: "screen" }} />
+
+      <div className="max-w-6xl mx-auto px-6 lg:px-10 min-h-screen flex flex-col relative">
         {/* top bar */}
         <div className="flex items-center justify-between py-7">
           <div className="flex items-center gap-2.5">
@@ -82,11 +157,9 @@ export default function Login() {
             transition={{ delay: 0.05 }}
             className="font-heading font-semibold mt-6 leading-[0.95] tracking-tight text-5xl sm:text-6xl lg:text-7xl"
           >
-            Scope out the
+            The only limits,
             <br />
-            <span style={{ color: ACCENT }}>perfect agent</span> for
-            <br />
-            any job you've got.
+            are <span style={{ color: ACCENT }}>your own.</span>
           </motion.h1>
 
           <motion.p
@@ -96,8 +169,8 @@ export default function Login() {
             className="mt-7 text-lg max-w-xl leading-relaxed"
             style={{ color: "rgba(244,244,236,0.65)" }}
           >
-            Configure a personal AI assistant with the exact role, goals and skills you need —
-            or start from a powerful template and make it yours in seconds.
+            No more "that's out of scope." Configure a personal AI with the exact role,
+            skills and mission you need — you draw the lines, it delivers.
           </motion.p>
 
           <motion.div
@@ -129,7 +202,8 @@ export default function Login() {
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 + i * 0.07 }}
-                className="rounded-2xl p-5 border"
+                whileHover={{ y: -4 }}
+                className="rounded-2xl p-5 border transition-colors"
                 style={{ borderColor: "rgba(244,244,236,0.12)", backgroundColor: "rgba(244,244,236,0.02)" }}
               >
                 <f.icon className="h-5 w-5" style={{ color: ACCENT }} />

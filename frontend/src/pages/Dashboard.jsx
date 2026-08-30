@@ -32,7 +32,8 @@ export default function Dashboard() {
   };
   useEffect(() => {
     (async () => {
-      try { await api.post("/agents/seed-presets"); } catch {}
+      try { await api.post("/agents/seed-presets"); }
+      catch (error) { console.error("Preset seeding failed:", error); }
       await load();
     })();
   }, []);

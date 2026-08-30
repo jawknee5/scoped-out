@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api, streamChat } from "@/lib/api";
@@ -24,9 +24,9 @@ const FIELD = ({ label, children, testid }) => (
 
 const Chips = ({ items, onPick }) => (
   <div className="flex flex-wrap gap-2 pt-1">
-    {items.map((s, i) => (
+    {items.map((s) => (
       <button
-        key={i}
+        key={s}
         type="button"
         onClick={() => onPick(s)}
         className="font-mono text-[11px] px-3 py-1 rounded-full border border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:border-white/30 transition-colors"
@@ -151,7 +151,8 @@ export default function Builder() {
     try {
       await api.delete(`/agents/${previewId}/documents/${docId}`);
       setDocs((d) => d.filter((x) => x.id !== docId));
-    } catch {
+    } catch (error) {
+      console.error("Remove document failed:", error);
       toast.error("Could not remove document");
     }
   };
@@ -164,18 +165,21 @@ export default function Builder() {
       if (!id) return;
     }
     const text = input.trim();
+    const userId = `p-${Date.now()}-u`;
+    const aiId = `p-${Date.now()}-a`;
     setInput("");
-    setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
+    setMessages((m) => [...m, { id: userId, role: "user", content: text }, { id: aiId, role: "assistant", content: "" }]);
     setSending(true);
     try {
       await streamChat(id, text, (delta) => {
         setMessages((m) => {
           const copy = [...m];
-          copy[copy.length - 1] = { role: "assistant", content: copy[copy.length - 1].content + delta };
+          copy[copy.length - 1] = { ...copy[copy.length - 1], content: copy[copy.length - 1].content + delta };
           return copy;
         });
       });
-    } catch {
+    } catch (error) {
+      console.error("Preview stream failed:", error);
       toast.error("The agent couldn't respond. Try again.");
       setMessages((m) => m.slice(0, -2));
       setInput(text);
@@ -366,13 +370,13 @@ export default function Builder() {
               )}
               {messages.map((m, i) =>
                 m.role === "user" ? (
-                  <div key={i} className="flex justify-end">
+                  <div key={m.id || `msg-${i}`} className="flex justify-end">
                     <div className="bg-white/5 rounded-2xl px-6 py-4 max-w-[85%] text-zinc-100 font-light whitespace-pre-wrap">
                       {m.content}
                     </div>
                   </div>
                 ) : (
-                  <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  <motion.div key={m.id || `msg-${i}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                     className="pl-4 border-l-2" style={{ borderColor: p.accent }}>
                     <Markdown>{m.content}</Markdown>
                     {m.content && <SpeakButton text={m.content} accent={p.accent} />}
