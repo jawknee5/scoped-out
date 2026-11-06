@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { TEMPLATES, personaOf } from "@/lib/personas";
 import { PersonaBackground } from "@/components/PersonaBackground";
 import { AgentCard } from "@/components/AgentCard";
+import { CrewEditSheet } from "@/components/CrewEditSheet";
 import { Plus, LogOut, Wand2, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toDelete, setToDelete] = useState(null);
+  const [editing, setEditing] = useState(null);
 
   const load = async () => {
     try {
@@ -143,12 +145,19 @@ export default function Dashboard() {
                 key={a.id}
                 agent={a}
                 onOpen={(ag) => navigate(`/chat/${ag.id}`)}
-                onEdit={(ag) => navigate("/builder", { state: { agent: ag } })}
+                onEdit={(ag) => setEditing(ag)}
                 onDelete={(ag) => setToDelete(ag)}
               />
             ))}
           </div>
         )}
+
+        <CrewEditSheet
+          agent={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(updated) => { setAgents((list) => list.map((x) => (x.id === updated.id ? updated : x))); setEditing(null); }}
+          onAdvanced={(ag) => navigate("/builder", { state: { agent: ag } })}
+        />
 
         {/* Templates */}
         <div className="mt-20">

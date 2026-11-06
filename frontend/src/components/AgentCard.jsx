@@ -42,9 +42,9 @@ export const AgentCard = ({ agent, onOpen, onEdit, onDelete }) => {
           <button
             data-testid={`edit-agent-${agent.id}`}
             onClick={() => onEdit(agent)}
-            className="p-2 rounded-full border border-white/15 text-zinc-300 hover:bg-white/10 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-white/15 text-sm text-zinc-300 hover:bg-white/10 transition-colors"
           >
-            <Settings2 className="h-4 w-4" />
+            <Settings2 className="h-4 w-4" /> Edit
           </button>
           <button
             data-testid={`delete-agent-${agent.id}`}

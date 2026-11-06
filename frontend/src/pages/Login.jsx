@@ -43,7 +43,7 @@ export default function Login() {
   ];
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden" style={{ backgroundColor: "#0b0d07", color: "#f4f4ec" }}>
+    <div className="min-h-screen w-full relative isolate overflow-hidden" style={{ backgroundColor: "#0b0d07", color: "#f4f4ec" }}>
       {/* backdrop layers */}
       <div className="absolute inset-0 -z-10">
         {/* grid */}
