@@ -231,9 +231,10 @@ class TestChat:
         r = client.post(f"{BASE_URL}/api/agents/{chat_agent}/chat", json={}, timeout=30)
         assert r.status_code == 422
 
-    def test_delete_agent_removes_messages(self, client):
+    def test_delete_agent_removes_messages(self, client, created_agent_ids):
         r = client.post(f"{BASE_URL}/api/agents", json=dict(AGENT_PAYLOAD, name="TEST_Del Msgs"), timeout=30)
         aid = r.json()["id"]
+        created_agent_ids.append(aid)  # ensure cleanup if chat fails
         c = client.post(f"{BASE_URL}/api/agents/{aid}/chat", json={"message": "Say hello briefly."}, timeout=180)
         assert c.status_code == 200, c.text[:300]
         assert client.delete(f"{BASE_URL}/api/agents/{aid}", timeout=30).status_code == 200

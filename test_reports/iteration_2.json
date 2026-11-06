@@ -1,0 +1,52 @@
+{
+  "summary": "Focused iteration-2 test. Crew Edit sheet, preset seeding with Webcrafter, Builder hand-off, delete, landing hero and Chat page load all work. BLOCKER: every LLM call (OpenAI, Anthropic and Gemini, both streaming and non-streaming) fails because the EMERGENT_LLM_KEY is rejected with 'litellm.AuthenticationError: OpenAIException - Invalid API key', so the Webcrafter chat could not be checked. Pytest: 21/27 passed. All 6 failures are LLM tests that fail for this same reason.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/agents/{id}/chat and /chat/stream", "issue": "Every model provider fails with 'Invalid API key' (litellm AuthenticationError; 24 occurrences in backend.err.log). EMERGENT_LLM_KEY is set in backend/.env (sk-emerg..., 30 chars) but the proxy rejects it. The key may be invalid, expired, or out of budget. The non-stream /chat returns 502 and the stream returns an SSE error event. The Webcrafter 'coffee shop landing page' prompt could not be checked.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/agents/{id}/chat/stream", "issue": "The user message is saved before the LLM call and is not rolled back on error. Chat.jsx removes it from the screen, but after a reload it appears again with no reply. Seen on Webcrafter: 'Build me a simple modern landing page for a coffee shop' with no answer."},
+      {"endpoint": "POST /api/agents/seed-presets", "issue": "Duplicates are detected by name only, and the dashboard calls this on every load. If a user renames a preset in the new Edit sheet (e.g. Webcrafter -> 'Web Pro'), a fresh 'Webcrafter' is created on the next dashboard load. If a user deletes a preset, it comes back on every dashboard load. Fix: store a preset_key field on seeded agents plus a per-user record of seeded or dismissed presets, and seed only once."},
+      {"endpoint": "PUT /api/agents/{id}", "issue": "The update filter omits user_id (TOCTOU risk), and AgentCreate defaults silently reset any omitted fields. Clients that send partial updates will wipe data. Consider an AgentUpdate model with optional fields and exclude_unset."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Chat with any agent", "issue": "No reply is possible because of the backend LLM key error. The UI shows a toast and puts the text back in the input, which is correct handling.", "affected_selectors": ["[data-testid=\"chat-send\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Landing /", "issues": ["Hero artwork shows on the right and the headline is fully legible. No issues. The dim decorative labels (LAW, FINANCE, CREATIVE) are very low contrast, which is probably intentional."]}
+    ]
+  },
+  "verified_working": [
+    "Each agent card has an Edit button (edit-agent-{id}) that opens crew-edit-sheet with all 7 text fields and the model filled in correctly",
+    "Changing tone, goal, description and model (to GPT 5.4 Mini) and saving: the sheet closes, the card updates, GET shows the new values, and skills, persona, background and role are kept",
+    "Reopening the sheet after a reload shows the new values",
+    "crew-edit-advanced goes to /builder with the agent loaded (fields, skill toggles, and gpt-5.4-mini shown in the preview header)",
+    "Webcrafter is present exactly once. seed-presets is idempotent (13 skipped, 0 created). Its config: anthropic/claude-sonnet-4-6, persona tech",
+    "Delete with confirm dialog removes the card, and GET returns 404",
+    "Chat page loads the agent name, messages, input and send button. The only console errors are 401s from /auth/me on the logged-out landing page, which is expected",
+    "Landing page: hero art is visible, the headline is legible, and google-login-button is present"
+  ],
+  "test_report_links": ["/app/backend/tests/test_crew_edit_presets.py", "/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "CRITICAL: Fix the LLM key. EMERGENT_LLM_KEY is rejected as 'Invalid API key' for all providers. Check the key's validity or budget, or ask the user to top up, then retest the Webcrafter chat.",
+    "Make preset seeding robust to renaming and deleting (preset_key plus a seed-once flag) so the Edit sheet and delete don't bring presets back",
+    "Roll back or mark the saved user message when the stream fails, so orphan prompts don't appear after a reload",
+    "Optional: add user_id to the update_one filter in update_agent"
+  ],
+  "critical_code_review_comments": [
+    "server.py seed_presets matches on name. This interacts badly with the new rename-capable Edit sheet and the auto-seed on dashboard load.",
+    "server.py chat_stream inserts the user message before the stream, and nothing removes it on error.",
+    "CrewEditSheet sends the full agent doc, including id, user_id and created_at. Pydantic ignores the extras, so this is fine, but the full-replace PUT is fragile."
+  ],
+  "updated_files": ["/app/backend/tests/test_crew_edit_presets.py (new)", "/app/backend/tests/backend_test.py (test_delete_agent_removes_messages now registers its id for cleanup)"],
+  "success_rate": {"backend": "78% (21/27); all failures caused by the invalid LLM key", "frontend": "100% of non-LLM flows"},
+  "seed_data_creation": "Created TEST_Crew and TEST_EditUI and deleted both by id. A leftover TEST_Del Msgs (agent_bbfce92171d2, created by this run when the LLM test failed) was deleted by id. Side effect: one orphan user message ('Build me a simple modern landing page for a coffee shop') is now in the test user's Webcrafter history, because the failed stream does not roll back.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "Bearer or cookie session_token=test_session_forge (test-user-forge) works",
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/ -q. Do not pass -p no:xdist; pytest.ini uses xdist. Once the LLM key works, rerun TestWebcrafterChat.test_stream and the backend_test.py LLM tests. Test user has 16 agents: 13 presets plus DocBot and Atlas.",
+  "rca of the issue": "The LLM failure is not an app code bug. The emergentintegrations LlmChat call receives EMERGENT_LLM_KEY, and the upstream proxy returns 401 'Invalid API key' for every provider. So the cause is the key's validity or balance in this environment."
+}

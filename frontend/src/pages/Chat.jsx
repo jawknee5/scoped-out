@@ -37,7 +37,7 @@ export default function Chat() {
         navigate("/dashboard");
       }
     })();
-  }, [agentId]);
+  }, [agentId, navigate, setPersona]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

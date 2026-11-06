@@ -38,3 +38,11 @@ Solo builders / professionals who want a tailored AI assistant per project (lega
 ## Notes
 - ngrok: user wants to use it in future; app is env-var driven and portable.
 - test_credentials.md / auth_testing.md maintained for testing.
+
+## Update — June 2026
+- Crew Edit sheet on dashboard (direct edit of name/description/role/goal/background/output/tone/model; "Skills & docs" opens Builder)
+- New preset crew member: Webcrafter (full-stack web builder, deploy guidance, UI/UX refit suggestions)
+- Presets seeded once per user (preset_seeds collection) — renamed/deleted presets no longer reappear
+- Failed chats roll back the user message; PUT scoped by user_id
+- Landing hero artwork now visible (isolate stacking fix)
+- BLOCKER: Universal Key budget exhausted — user must top up for chat replies

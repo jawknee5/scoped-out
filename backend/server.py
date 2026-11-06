@@ -177,7 +177,8 @@ async def seed_presets(user: User = Depends(get_current_user)):
     """Idempotently create the preconfigured R&D team for the current user only."""
     from presets import PRESET_AGENTS
     existing = await db.agents.find({"user_id": user.user_id}, {"_id": 0, "name": 1}).to_list(1000)
-    have = {a["name"] for a in existing}
+    rec = await db.preset_seeds.find_one({"user_id": user.user_id}, {"_id": 0}) or {}
+    have = {a["name"] for a in existing} | set(rec.get("seeded", []))
     created = []
     for p in PRESET_AGENTS:
         if p["name"] in have:
@@ -185,6 +186,11 @@ async def seed_presets(user: User = Depends(get_current_user)):
         agent = Agent(user_id=user.user_id, **p)
         await db.agents.insert_one(agent.model_dump())
         created.append(agent.name)
+    await db.preset_seeds.update_one(
+        {"user_id": user.user_id},
+        {"$addToSet": {"seeded": {"$each": [p["name"] for p in PRESET_AGENTS]}}},
+        upsert=True,
+    )
     return {"created": created, "skipped": [p["name"] for p in PRESET_AGENTS if p["name"] in have]}
 
 
@@ -207,7 +213,7 @@ async def update_agent(agent_id: str, body: AgentCreate, user: User = Depends(ge
     doc = await db.agents.find_one({"id": agent_id, "user_id": user.user_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Agent not found")
-    await db.agents.update_one({"id": agent_id}, {"$set": body.model_dump()})
+    await db.agents.update_one({"id": agent_id, "user_id": user.user_id}, {"$set": body.model_dump()})
     doc.update(body.model_dump())
     return Agent(**doc)
 
@@ -393,8 +399,9 @@ async def chat_stream(agent_id: str, body: ChatIn, user: User = Depends(get_curr
     docs = await db.documents.find({"agent_id": agent_id}, {"_id": 0}).sort("created_at", 1).to_list(100)
     passages = retrieve_passages(docs, body.message)
 
+    user_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
     await db.messages.insert_one({
-        "id": f"msg_{uuid.uuid4().hex[:12]}", "agent_id": agent_id, "role": "user",
+        "id": user_msg_id, "agent_id": agent_id, "role": "user",
         "content": body.message, "created_at": now_utc().isoformat(),
     })
 
@@ -418,6 +425,8 @@ async def chat_stream(agent_id: str, body: ChatIn, user: User = Depends(get_curr
                 "id": f"msg_{uuid.uuid4().hex[:12]}", "agent_id": agent_id, "role": "assistant",
                 "content": text, "created_at": now_utc().isoformat(),
             })
+        else:
+            await db.messages.delete_one({"id": user_msg_id})
         yield f"data: {json.dumps({'done': True})}\n\n"
 
     return StreamingResponse(
@@ -435,8 +444,9 @@ async def chat(agent_id: str, body: ChatIn, user: User = Depends(get_current_use
     docs = await db.documents.find({"agent_id": agent_id}, {"_id": 0}).sort("created_at", 1).to_list(100)
     passages = retrieve_passages(docs, body.message)
 
+    user_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
     await db.messages.insert_one({
-        "id": f"msg_{uuid.uuid4().hex[:12]}", "agent_id": agent_id, "role": "user",
+        "id": user_msg_id, "agent_id": agent_id, "role": "user",
         "content": body.message, "created_at": now_utc().isoformat(),
     })
 
@@ -446,6 +456,7 @@ async def chat(agent_id: str, body: ChatIn, user: User = Depends(get_current_use
         reply = await chat_client.send_message(UserMessage(text=body.message))
     except Exception as e:
         logging.exception("LLM error")
+        await db.messages.delete_one({"id": user_msg_id})
         raise HTTPException(status_code=502, detail=f"AI generation failed: {str(e)}")
 
     reply_text = reply if isinstance(reply, str) else str(reply)
