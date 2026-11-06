@@ -9,18 +9,19 @@ export const api = axios.create({
 });
 
 // Stream a chat reply via SSE. Calls onDelta(text) for each token chunk.
-export async function streamChat(agentId, message, onDelta, signal) {
+export async function streamChat(agentId, message, onDelta, signal, extra = {}) {
   const resp = await fetch(`${API}/agents/${agentId}/chat/stream`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, ...extra }),
     signal,
   });
   if (!resp.ok || !resp.body) throw new Error("stream failed");
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let doneData = null;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -33,6 +34,8 @@ export async function streamChat(agentId, message, onDelta, signal) {
       const data = JSON.parse(line.slice(5).trim());
       if (data.error) throw new Error(data.error);
       if (data.delta) onDelta(data.delta);
+      if (data.done) doneData = data;
     }
   }
+  return doneData;
 }

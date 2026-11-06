@@ -48,3 +48,5 @@ Solo builders / professionals who want a tailored AI assistant per project (lega
 - BLOCKER: Universal Key budget exhausted — user must top up for chat replies
 - Live site preview (sandboxed iframe + open in new tab) and Download code (.zip) on any chat reply containing code blocks (CodeTools.jsx, lib/codeBlocks.js)
 - Saved Site Builds: auto-saved on Live preview (deduped per message), /builds page to reopen, download zip, delete, and compare two builds side by side with per-file same/changed/only-here status (Builds.jsx, BuildCard, CompareDialog, PreviewDialog; /api/builds GET/POST/DELETE, user-scoped)
+- Refine From Build: Builds card 'Refine' → pick builder + instructions (+ optional QA feedback) → chat auto-sends with full code; reply's preview saves as next version (root_id/version lineage, title '· vN')
+- Crew Handoff: 'Send to QA' → QA agent reviews full code, verdict (ready/needs changes) stored on build; badge + review dialog on Builds page. ChatIn now accepts build_id/mode/include_review; stream done event returns message id

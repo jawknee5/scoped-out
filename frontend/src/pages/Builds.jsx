@@ -5,6 +5,8 @@ import { buildPreview, downloadZip } from "@/lib/codeBlocks";
 import { BuildCard } from "@/components/BuildCard";
 import { PreviewDialog } from "@/components/PreviewDialog";
 import { CompareDialog } from "@/components/CompareDialog";
+import { HandoffDialog } from "@/components/HandoffDialog";
+import { ReviewDialog } from "@/components/ReviewDialog";
 import { ArrowLeft, GitCompare } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,8 +17,12 @@ export default function Builds() {
   const [viewing, setViewing] = useState(null);
   const [picked, setPicked] = useState([]);
   const [comparing, setComparing] = useState(false);
+  const [agents, setAgents] = useState([]);
+  const [handoff, setHandoff] = useState({ build: null, mode: "refine" });
+  const [reviewing, setReviewing] = useState(null);
 
   useEffect(() => {
+    api.get("/agents").then((r) => setAgents(r.data)).catch((error) => console.error("Load agents failed:", error));
     api.get("/builds")
       .then((r) => setBuilds(r.data))
       .catch((error) => { console.error("Load builds failed:", error); toast.error("Could not load builds"); })
@@ -77,6 +83,9 @@ export default function Builds() {
                 onDownload={() => downloadZip(b.files, b.title)}
                 onDelete={() => remove(b)}
                 onToggleCompare={() => toggle(b.id)}
+                onRefine={() => setHandoff({ build: b, mode: "refine" })}
+                onReview={() => setHandoff({ build: b, mode: "review" })}
+                onViewReview={() => setReviewing(b)}
               />
             ))}
           </div>
@@ -84,6 +93,8 @@ export default function Builds() {
       </main>
       <PreviewDialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)} html={viewing ? buildPreview(viewing.files) : ""} title={viewing?.title} subtitle={viewing?.agent_name} />
       <CompareDialog pair={pair} onClose={() => setComparing(false)} />
+      <HandoffDialog build={handoff.build} mode={handoff.mode} agents={agents} onClose={() => setHandoff({ build: null, mode: handoff.mode })} />
+      <ReviewDialog build={reviewing} onClose={() => setReviewing(null)} />
     </div>
   );
 }

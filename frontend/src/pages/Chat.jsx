@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api, streamChat } from "@/lib/api";
 import { useTheme } from "@/context/ThemeContext";
@@ -9,12 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/Markdown";
 import { SpeakButton } from "@/components/SpeakButton";
 import { CodeTools } from "@/components/CodeTools";
-import { ArrowLeft, Send, Settings2 } from "lucide-react";
+import { ArrowLeft, Send, Settings2, GitBranch, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Chat() {
   const { agentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { setPersona } = useTheme();
   const [agent, setAgent] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -44,31 +45,51 @@ export default function Chat() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, sending]);
 
-  const send = async () => {
-    if (!input.trim() || sending) return;
-    const text = input.trim();
+  const sendMessage = async (text, extra = {}) => {
     const userId = `c-${Date.now()}-u`;
     const aiId = `c-${Date.now()}-a`;
-    setInput("");
-    setMessages((m) => [...m, { id: userId, role: "user", content: text }, { id: aiId, role: "assistant", content: "" }]);
+    const buildRef = extra.build_id ? { id: extra.build_id, title: extra.title, mode: extra.mode } : undefined;
+    setMessages((m) => [...m, { id: userId, role: "user", content: text, build_ref: buildRef }, { id: aiId, role: "assistant", content: "" }]);
     setSending(true);
     try {
-      await streamChat(agentId, text, (delta) => {
+      const { title, ...payload } = extra;
+      const done = await streamChat(agentId, text, (delta) => {
         setMessages((m) => {
           const copy = [...m];
           copy[copy.length - 1] = { ...copy[copy.length - 1], content: copy[copy.length - 1].content + delta };
           return copy;
         });
-      });
+      }, undefined, payload);
+      if (done?.id) {
+        setMessages((m) => m.map((x) => (x.id === aiId ? { ...x, id: done.id, parent_build_id: done.parent_build_id } : x)));
+      }
+      if (extra.mode === "review") toast.success("QA review saved to the build");
     } catch (error) {
       console.error("Chat stream failed:", error);
       toast.error("The agent couldn't respond. Try again.");
       setMessages((m) => m.slice(0, -2));
-      setInput(text);
+      if (!extra.build_id) setInput(text);
     } finally {
       setSending(false);
     }
   };
+
+  const send = () => {
+    if (!input.trim() || sending) return;
+    const text = input.trim();
+    setInput("");
+    sendMessage(text);
+  };
+
+  const handoff = location.state?.handoff;
+  const handoffSent = useRef(false);
+  useEffect(() => {
+    if (!agent || !handoff || handoffSent.current) return;
+    handoffSent.current = true;
+    navigate(location.pathname, { replace: true, state: null });
+    const { message, ...extra } = handoff;
+    sendMessage(message, extra);
+  }, [agent, handoff]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const p = personaOf(agent?.persona || "default");
 
@@ -119,6 +140,12 @@ export default function Chat() {
             m.role === "user" ? (
               <div key={m.id || `msg-${i}`} className="flex justify-end">
                 <div className="bg-white/5 rounded-2xl px-6 py-4 max-w-[85%] text-zinc-100 font-light whitespace-pre-wrap">
+                  {m.build_ref && (
+                    <span className="flex items-center gap-1.5 font-mono text-[11px] text-emerald-300 mb-2" data-testid="handoff-chip">
+                      {m.build_ref.mode === "review" ? <ShieldCheck className="h-3.5 w-3.5" /> : <GitBranch className="h-3.5 w-3.5" />}
+                      {m.build_ref.mode === "review" ? "QA handoff" : "Refining"} · {m.build_ref.title}
+                    </span>
+                  )}
                   {m.content}
                 </div>
               </div>
@@ -127,7 +154,7 @@ export default function Chat() {
                 className="pl-5 border-l-2" style={{ borderColor: p.accent }}>
                 <Markdown>{m.content}</Markdown>
                 {m.content && <SpeakButton text={m.content} accent={p.accent} />}
-                {m.content && !(sending && i === messages.length - 1) && <CodeTools text={m.content} name={agent?.name} agentId={agent?.id} messageId={m.id} />}
+                {m.content && !(sending && i === messages.length - 1) && <CodeTools text={m.content} name={agent?.name} agentId={agent?.id} messageId={m.id} parentBuildId={m.parent_build_id} />}
               </motion.div>
             )
           )}

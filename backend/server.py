@@ -76,6 +76,31 @@ class AgentCreate(BaseModel):
 
 class ChatIn(BaseModel):
     message: str
+    build_id: Optional[str] = None
+    mode: Optional[str] = None
+    include_review: bool = False
+
+
+def _files_md(build: dict) -> str:
+    return "\n\n".join(f"**{f['name']}**\n```{f.get('lang', 'txt')}\n{f['body']}\n```" for f in build["files"])
+
+
+def compose_build_prompt(build: dict, body: "ChatIn") -> str:
+    if body.mode == "review":
+        head = (f"HANDOFF from {build.get('agent_name') or 'the web builder'}: review the site build \"{build['title']}\" before it is published. "
+                "Act as the release QA reviewer: check functionality, bugs, accessibility, responsiveness, performance, SEO and security. "
+                "Start with exactly one line: 'VERDICT: READY TO PUBLISH' or 'VERDICT: NEEDS CHANGES', then a prioritised issue list (severity, file, concrete fix).")
+    else:
+        head = (f"Refine the saved site build \"{build['title']}\" (v{build.get('version', 1)}) into a new version. "
+                "Return the COMPLETE updated code for every file, each preceded by its filename in bold, then a short changelog.")
+        if body.include_review and build.get("review"):
+            head += f"\n\nAddress this QA review:\n{build['review']['content']}"
+    return f"{head}\n\nUser instructions: {body.message}\n\nCurrent files:\n\n{_files_md(build)}"
+
+
+def review_verdict(text: str) -> str:
+    up = text.upper()
+    return "ready" if "READY TO PUBLISH" in up else ("changes" if "NEEDS CHANGES" in up else "unknown")
 
 
 # ---------------- Auth ----------------
@@ -399,18 +424,30 @@ async def chat_stream(agent_id: str, body: ChatIn, user: User = Depends(get_curr
     docs = await db.documents.find({"agent_id": agent_id}, {"_id": 0}).sort("created_at", 1).to_list(100)
     passages = retrieve_passages(docs, body.message)
 
+    build = None
+    if body.build_id:
+        build = await db.builds.find_one({"id": body.build_id, "user_id": user.user_id}, {"_id": 0})
+        if not build:
+            raise HTTPException(status_code=404, detail="Build not found")
+    llm_text = compose_build_prompt(build, body) if build else body.message
+
     user_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
-    await db.messages.insert_one({
+    user_doc = {
         "id": user_msg_id, "agent_id": agent_id, "role": "user",
         "content": body.message, "created_at": now_utc().isoformat(),
-    })
+    }
+    if build:
+        user_doc["build_ref"] = {"id": build["id"], "title": build["title"], "mode": body.mode or "refine"}
+    await db.messages.insert_one(user_doc)
 
     chat_client = _make_chat(agent, history, passages)
+    ai_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
+    parent_id = build["id"] if build and body.mode != "review" else None
 
     async def event_generator():
         collected = []
         try:
-            async for ev in chat_client.stream_message(UserMessage(text=body.message)):
+            async for ev in chat_client.stream_message(UserMessage(text=llm_text)):
                 if isinstance(ev, TextDelta):
                     collected.append(ev.content)
                     yield f"data: {json.dumps({'delta': ev.content})}\n\n"
@@ -422,12 +459,17 @@ async def chat_stream(agent_id: str, body: ChatIn, user: User = Depends(get_curr
         text = "".join(collected)
         if text:
             await db.messages.insert_one({
-                "id": f"msg_{uuid.uuid4().hex[:12]}", "agent_id": agent_id, "role": "assistant",
-                "content": text, "created_at": now_utc().isoformat(),
+                "id": ai_msg_id, "agent_id": agent_id, "role": "assistant",
+                "content": text, "created_at": now_utc().isoformat(), "parent_build_id": parent_id,
             })
+            if build and body.mode == "review":
+                await db.builds.update_one({"id": build["id"], "user_id": user.user_id}, {"$set": {"review": {
+                    "agent_id": agent_id, "agent_name": agent["name"], "content": text,
+                    "verdict": review_verdict(text), "created_at": now_utc().isoformat(),
+                }}})
         else:
             await db.messages.delete_one({"id": user_msg_id})
-        yield f"data: {json.dumps({'done': True})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'id': ai_msg_id if text else None, 'parent_build_id': parent_id})}\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -480,13 +522,28 @@ class BuildIn(BaseModel):
     message_id: Optional[str] = None
     title: str = "Untitled build"
     files: List[BuildFile]
+    parent_build_id: Optional[str] = None
 
 
 class Build(BuildIn):
     id: str = Field(default_factory=lambda: f"build_{uuid.uuid4().hex[:12]}")
     user_id: str
     agent_name: str = ""
+    version: int = 1
+    root_id: Optional[str] = None
+    review: Optional[dict] = None
     created_at: str = Field(default_factory=lambda: now_utc().isoformat())
+
+
+async def _lineage(parent_id: str, user_id: str) -> dict:
+    parent = await db.builds.find_one({"id": parent_id, "user_id": user_id}, {"_id": 0})
+    if not parent:
+        return {}
+    root_id = parent.get("root_id") or parent["id"]
+    root = parent if root_id == parent["id"] else (await db.builds.find_one({"id": root_id}, {"_id": 0}) or parent)
+    fam = await db.builds.find({"user_id": user_id, "$or": [{"id": root_id}, {"root_id": root_id}]}, {"_id": 0, "version": 1}).to_list(500)
+    version = max((b.get("version", 1) for b in fam), default=1) + 1
+    return {"root_id": root_id, "version": version, "title": f"{root['title'].split(' · v')[0]} · v{version}"}
 
 
 @api_router.post("/builds", response_model=Build)
@@ -496,7 +553,10 @@ async def save_build(body: BuildIn, user: User = Depends(get_current_user)):
         found = await db.builds.find_one({"user_id": user.user_id, "message_id": body.message_id}, {"_id": 0})
         if found:
             return Build(**found)
-    build = Build(user_id=user.user_id, agent_name=agent["name"], **body.model_dump())
+    data = body.model_dump()
+    if body.parent_build_id:
+        data.update(await _lineage(body.parent_build_id, user.user_id))
+    build = Build(user_id=user.user_id, agent_name=agent["name"], **data)
     await db.builds.insert_one(build.model_dump())
     return build
 

@@ -5,7 +5,7 @@ import { PreviewDialog, pillBtn } from "@/components/PreviewDialog";
 import { Eye, Download, Check } from "lucide-react";
 import { toast } from "sonner";
 
-export const CodeTools = ({ text, name = "site", agentId, messageId }) => {
+export const CodeTools = ({ text, name = "site", agentId, messageId, parentBuildId }) => {
   const blocks = useMemo(() => extractCodeBlocks(text || ""), [text]);
   const preview = useMemo(() => buildPreview(blocks), [blocks]);
   const [open, setOpen] = useState(false);
@@ -15,7 +15,7 @@ export const CodeTools = ({ text, name = "site", agentId, messageId }) => {
   const saveBuild = async () => {
     if (saved || !agentId) return;
     try {
-      await api.post("/builds", { agent_id: agentId, message_id: messageId, title: buildTitle(blocks, `${name} build`), files: blocks });
+      await api.post("/builds", { agent_id: agentId, message_id: messageId, parent_build_id: parentBuildId, title: buildTitle(blocks, `${name} build`), files: blocks });
       setSaved(true);
       toast.success("Saved to your Builds");
     } catch (error) {
