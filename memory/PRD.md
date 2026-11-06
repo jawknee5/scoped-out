@@ -46,3 +46,4 @@ Solo builders / professionals who want a tailored AI assistant per project (lega
 - Failed chats roll back the user message; PUT scoped by user_id
 - Landing hero artwork now visible (isolate stacking fix)
 - BLOCKER: Universal Key budget exhausted — user must top up for chat replies
+- Live site preview (sandboxed iframe + open in new tab) and Download code (.zip) on any chat reply containing code blocks (CodeTools.jsx, lib/codeBlocks.js)

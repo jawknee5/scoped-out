@@ -8,6 +8,7 @@ import { PersonaBackground } from "@/components/PersonaBackground";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/Markdown";
 import { SpeakButton } from "@/components/SpeakButton";
+import { CodeTools } from "@/components/CodeTools";
 import { ArrowLeft, Send, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -126,6 +127,7 @@ export default function Chat() {
                 className="pl-5 border-l-2" style={{ borderColor: p.accent }}>
                 <Markdown>{m.content}</Markdown>
                 {m.content && <SpeakButton text={m.content} accent={p.accent} />}
+                {m.content && !(sending && i === messages.length - 1) && <CodeTools text={m.content} name={agent?.name} />}
               </motion.div>
             )
           )}
