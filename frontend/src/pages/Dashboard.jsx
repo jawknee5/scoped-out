@@ -7,7 +7,7 @@ import { TEMPLATES, personaOf } from "@/lib/personas";
 import { PersonaBackground } from "@/components/PersonaBackground";
 import { AgentCard } from "@/components/AgentCard";
 import { CrewEditSheet } from "@/components/CrewEditSheet";
-import { Plus, LogOut, Wand2, Users } from "lucide-react";
+import { Plus, LogOut, Wand2, Users, Layers } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -83,6 +83,13 @@ export default function Dashboard() {
             Scoped Out
           </div>
           <div className="flex items-center gap-3">
+            <button
+              data-testid="nav-builds-button"
+              onClick={() => navigate("/builds")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/15 text-sm text-zinc-300 hover:bg-white/10 transition-colors"
+            >
+              <Layers className="h-4 w-4" /> Builds
+            </button>
             {user?.picture && (
               <img src={user.picture} alt="" className="h-8 w-8 rounded-full border border-white/20" />
             )}

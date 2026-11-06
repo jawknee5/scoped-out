@@ -8,6 +8,7 @@ import AuthCallback from "@/pages/AuthCallback";
 import Dashboard from "@/pages/Dashboard";
 import Builder from "@/pages/Builder";
 import Chat from "@/pages/Chat";
+import Builds from "@/pages/Builds";
 
 const Loader = () => (
   <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-400 font-mono text-xs tracking-widest uppercase">
@@ -33,6 +34,7 @@ function AppRouter() {
       <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
       <Route path="/builder" element={<Protected><Builder /></Protected>} />
       <Route path="/chat/:agentId" element={<Protected><Chat /></Protected>} />
+      <Route path="/builds" element={<Protected><Builds /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

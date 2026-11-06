@@ -127,7 +127,7 @@ export default function Chat() {
                 className="pl-5 border-l-2" style={{ borderColor: p.accent }}>
                 <Markdown>{m.content}</Markdown>
                 {m.content && <SpeakButton text={m.content} accent={p.accent} />}
-                {m.content && !(sending && i === messages.length - 1) && <CodeTools text={m.content} name={agent?.name} />}
+                {m.content && !(sending && i === messages.length - 1) && <CodeTools text={m.content} name={agent?.name} agentId={agent?.id} messageId={m.id} />}
               </motion.div>
             )
           )}

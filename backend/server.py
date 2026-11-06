@@ -468,6 +468,52 @@ async def chat(agent_id: str, body: ChatIn, user: User = Depends(get_current_use
     return {"role": "assistant", "content": reply_text, "id": msg_doc["id"], "created_at": msg_doc["created_at"]}
 
 
+# ---------------- Saved site builds ----------------
+class BuildFile(BaseModel):
+    name: str
+    lang: str = "txt"
+    body: str
+
+
+class BuildIn(BaseModel):
+    agent_id: str
+    message_id: Optional[str] = None
+    title: str = "Untitled build"
+    files: List[BuildFile]
+
+
+class Build(BuildIn):
+    id: str = Field(default_factory=lambda: f"build_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    agent_name: str = ""
+    created_at: str = Field(default_factory=lambda: now_utc().isoformat())
+
+
+@api_router.post("/builds", response_model=Build)
+async def save_build(body: BuildIn, user: User = Depends(get_current_user)):
+    agent = await _require_agent(body.agent_id, user)
+    if body.message_id:
+        found = await db.builds.find_one({"user_id": user.user_id, "message_id": body.message_id}, {"_id": 0})
+        if found:
+            return Build(**found)
+    build = Build(user_id=user.user_id, agent_name=agent["name"], **body.model_dump())
+    await db.builds.insert_one(build.model_dump())
+    return build
+
+
+@api_router.get("/builds", response_model=List[Build])
+async def list_builds(user: User = Depends(get_current_user)):
+    return await db.builds.find({"user_id": user.user_id}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@api_router.delete("/builds/{build_id}")
+async def delete_build(build_id: str, user: User = Depends(get_current_user)):
+    res = await db.builds.delete_one({"id": build_id, "user_id": user.user_id})
+    if not res.deleted_count:
+        raise HTTPException(status_code=404, detail="Build not found")
+    return {"ok": True}
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Agent Forge API"}

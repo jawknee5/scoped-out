@@ -30,6 +30,28 @@ export function extractCodeBlocks(text) {
 
 const ext = (b) => b.name.split(".").pop().toLowerCase();
 
+export function buildTitle(blocks, fallback) {
+  const html = blocks.find((b) => ext(b) === "html")?.body || "";
+  const t = html.match(/<title>([^<]+)<\/title>/i) || html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+  return (t?.[1] || fallback || "Untitled build").trim().slice(0, 80);
+}
+
+export async function downloadZip(files, name) {
+  const { default: JSZip } = await import("jszip");
+  const zip = new JSZip();
+  files.forEach((f) => zip.file(f.name, f.body));
+  const blob = await zip.generateAsync({ type: "blob" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(name || "site").toLowerCase().replace(/\W+/g, "-")}-code.zip`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+export function openInTab(html) {
+  window.open(URL.createObjectURL(new Blob([html], { type: "text/html" })), "_blank", "noopener");
+}
+
 export function buildPreview(blocks) {
   const html = blocks.find((b) => ext(b) === "html" || b.lang === "html");
   if (!html) return null;
